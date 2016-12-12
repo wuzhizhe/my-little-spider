@@ -126,11 +126,16 @@ function makeRssXmlFile() {
     console.log('used time ' + (new Date().getTime() - startTime));
 }
 
-/*================================================小说分割线 start================================================*/
+/*===============================================lewen8小说分割线 start============================================*/
 
+/**
+ * 从目录页获取到的数据生成每一章的访问url
+ * @param $
+ * @param chapterlist
+ * @returns {Array}
+ */
 function makeNovelPageArray($, chapterlist) {
     let novelList = [];
-    // for (let i = 0; i < 1; i++) {
     for (let i = 0; i < chapterlist.length; i++) {
         let pages = chapterlist[i].children;
         for (let j = 0; j < pages.length; j++) {
@@ -145,6 +150,14 @@ function makeNovelPageArray($, chapterlist) {
     return novelList;
 }
 
+/**
+ * 获取页面中的title与content生成小说每一章的名字与正文
+ * @param url
+ * @param contentArray
+ * @param index
+ * @param callback
+ * @param count
+ */
 function getNovel(url, contentArray, index, callback, count) {
     superagent.get(url).proxy(proxy).end((err, res) => {
         count++;
@@ -174,6 +187,11 @@ function getNovel(url, contentArray, index, callback, count) {
     });
 }
 
+/**
+ * 将获取到的所有字符排序，然后连接生成HTML字符串
+ * @param cArray
+ * @returns {string}
+ */
 function makeHtmlContent(cArray) {
     cArray = _.sortBy(cArray, 'index');
     let content = '';
@@ -183,6 +201,12 @@ function makeHtmlContent(cArray) {
     return content;
 }
 
+/**
+ * 用异步调用方式获取每一页的标题与数据
+ * @param chapterlist
+ * @param resolve
+ * @param reject
+ */
 function getNoveText(chapterlist, resolve, reject) {
     let index = 0;
     let contentArray = [];
@@ -195,11 +219,16 @@ function getNoveText(chapterlist, resolve, reject) {
         getNovel(item, contentArray, index++, callback, 0);
     }, (err, results) => {
         let insertTime = new Date().getTime();
-        console.log('all spide used time = ' + (insertTime - startTime) + 'ms');
+        console.log('抓取这小说一共用了 ' + (insertTime - startTime) + ' 毫秒');
         resolve(makeHtmlContent(contentArray));
     });
 }
 
+/**
+ * 从目录页获取章节列表
+ * @param url
+ * @returns {Promise}
+ */
 function getNovelPageList(url) {
     return new Promise((resolve, reject) => {
         superagent.get(url).proxy(proxy).end((err, res) => {
