@@ -1,0 +1,10 @@
+extends ../layout
+append css
+  link(rel='stylesheet', href='/stylesheets/spider/spider.css')
+block content
+  h1 CNODE首页文章列表
+  div
+    for val in data
+      .article
+        a(href=val.href)= val.title
+        span.username= ('作者：'+ val.user)
