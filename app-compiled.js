@@ -5,6 +5,7 @@ var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 var http = require('http');
+baseDir = __dirname;
 env = 'development';
 require('./service/constantStart');
 var routes = require('./routes/index');

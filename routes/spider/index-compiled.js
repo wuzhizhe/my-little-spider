@@ -198,6 +198,13 @@ function makeHtmlContent(cArray) {
     for (let i = 0; i < cArray.length; i++) {
         content += cArray[i].content;
     }
+    let html = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title><Document></Document></title></head><body></body></html>';
+    let dom = cheerio.load(html);
+    dom('body').append(content);
+    let time = new Date().getTime();
+    let filePath = baseDir + '\\public\\' + time + '.html';
+    fs.closeSync(fs.openSync(filePath, 'w'));
+    fs.writeFileSync(filePath, dom.html());
     return content;
 }
 

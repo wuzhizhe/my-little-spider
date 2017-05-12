@@ -6,7 +6,9 @@ const superagent = require('superagent'),
     EventProxy = require('eventproxy'),
     async = require('async'),
     fs = require('fs'),
+    opn = require('opn'),
     proxy = 'http://127.0.0.1:5656',
+    // proxy = 'http://10.18.8.21:8081',
     _ = require('underscore'),
     DOMParser = require('xmldom').DOMParser;
 let pageInfo = {};
@@ -210,6 +212,16 @@ function makeHtmlContent(cArray) {
     for ( let i = 0; i < cArray.length; i++) {
         content += cArray[i].content;
     }
+    let html = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title><Document></Document></title></head><body></body></html>';
+    let dom = cheerio.load(html);
+    dom('body').append(content);
+    let time = new Date().getTime();
+    let filePath = baseDir + '\\public\\' + time + '.html';
+    fs.closeSync(fs.openSync(filePath, 'w'));
+    fs.writeFileSync(filePath, dom.html());
+    setTimeout(() => {
+        opn(filePath);
+    }, 3000)
     return content;
 }
 
@@ -232,7 +244,7 @@ function  getNoveText(chapterlist, resolve, reject) {
     }, (err, results) => {
         let insertTime = new Date().getTime();
         console.log('抓取这小说一共用了 '+ (insertTime - startTime) + ' 毫秒');
-        resolve(makeHtmlContent(contentArray));
+        res.end(makeHtmlContent(contentArray));
     });
 }
 
@@ -260,9 +272,239 @@ function getNovelPageList(url) {
 /*================================================小说分割线 end=================================================*/
 
 
+/*================================================520 novel start==============================================*/
+
+/**
+ * 根据novelId获取所有的url
+ * @param url
+ */
+function get520NovelUrls(url) {
+    return new Promise( (resolve, reject) => {
+        superagent.get(url)
+            .proxy(proxy)
+            .end((err, res) => {
+                assert.equal(err, null);
+                let $ = cheerio.load(res.text);
+                let prefix = 'http://m.520xs.la';
+                let urlArray = [];
+                let chapterlist = $('.pageselectlist')[0];
+                for (let i = 0; i < chapterlist.children.length; i++) {
+                    let _url = prefix + $(chapterlist.children[i]).attr('value');
+                    urlArray.push(_url)
+                }
+                resolve(urlArray);
+            });
+    });
+
+}
+
+function get520NovelCollect(url) {
+    let pageList = [],
+        prefix = 'http://m.520xs.la';
+    return new Promise( (resolve, reject) => {
+        superagent.get(url)
+            .proxy(proxy)
+            .end((err, res) => {
+                assert.equal(err, null);
+                let $ = cheerio.load(res.text);
+                let chapterList = [];
+                let novelList = $('#chapterlist')[0].children;
+                for (let i = 0; i < novelList.length; i++) {
+                    let href = prefix + $(novelList[i]).attr('onclick').split("location.href='")[1];
+                    console.log(href);
+                    chapterList.push(href);
+                }
+                resolve(chapterList);
+            });
+    });
+}
+
+function getNovelContent(url) {
+    return new Promise( (resolve, reject) => {
+        superagent.get(url)
+            .proxy(proxy)
+            .end((err, res) => {
+                if (err) {
+                    resolve('');
+                }
+                let $ = cheerio.load(res.text);
+                let content = $('#readercontainer').html();
+                content = content.replace('<div style="display:none;">', '');
+                content = content.replace('</div>', '');
+                resolve(content);
+            });
+    });
+}
+
+function run(fn, url) {
+    var g = fn(url);
+    function next(preData) {
+        g.next(preData).value.then(function(nowData) {
+            next(nowData);
+        });
+    }
+    next(null);
+}
+
+function get520Novel(url) {
+    run(get520Novels, url);
+}
+
+
+function* get520Novels(url) {
+    let allPages = [];
+    let urls = yield get520NovelUrls(url);
+    let content = '';
+    for (let i = 0; i < urls.length; i++) {
+        let pages = yield get520NovelCollect(urls[i]);
+        allPages = allPages.concat(pages);
+    }
+    for (let i = 0; i < allPages.length; i++) {
+        let pageContent = yield getNovelContent(allPages[i]);
+        content += pageContent;
+    }
+    let html = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title><Document></Document></title></head><body></body></html>';
+    let dom = cheerio.load(html);
+    dom('body').append(content);
+    let time = new Date().getTime();
+    let filePath = baseDir + '\\public\\' + time + '.html';
+    fs.closeSync(fs.openSync(filePath, 'w'));
+    fs.writeFileSync(filePath, dom.html());
+    // return content;
+}
+
+/*================================================520 novel endt==============================================*/
+
+
+/*================================================quanben novel endt==============================================*/
+
+// 下载全本小说网的小说
+
+async function getQuanbenNovel(url, res) {
+    let novelList = await getQuanbenNovelList(url);
+    // return getAllNovelContent(novelList)
+    getAllNovelContentByAsyncMaplist(novelList, res);
+}
+
+function getAllNovelContentByAsyncMaplist(novelList, res) {
+    let contentArray = [];
+    let index = 0;
+    let atime = new Date().getTime();
+    let startTime = atime;
+    async.mapLimit(novelList, 10, (item, callback) => {
+        let btime = new Date().getTime();
+        console.log(btime - atime + '   ' + item);
+        atime = btime;
+        getChapterContent(item, contentArray, index++, callback, 0);
+    }, (err, results) => {
+        let insertTime = new Date().getTime();
+        console.log('抓取这小说一共用了 '+ (insertTime - startTime) + ' 毫秒');
+        makeHtmlContent(contentArray);
+        // res.end('小说下载完毕，3秒后在新页面打开！');
+    });
+}
+
+function getChapterContent(url, contentArray, index, callback) {
+    console.log(url)
+    return new Promise( (resolve, reject) => {
+        superagent.get(url)
+            .proxy(proxy)
+            .end((err, res) => {
+                let thisErr = null;
+                try {
+                    if (err) {
+                        reject(err);
+                    }
+                    if (!res) {
+                        resolve('');
+                        return;
+                    }
+                    let $ = cheerio.load(res.text);
+                    let title = $('.headline');
+                    let content = cheerio.load($('.articlebody').html());
+                    content('script').remove();
+                    content('ins').remove();
+                    contentArray.push({
+                        index,
+                        content: title.html() + content.html()
+                    });
+                } catch (err) {
+                    thisErr = err;
+                    getChapterContent(url, contentArray, index, callback)
+                } finally {
+                    if (!thisErr) callback();
+                }
+                
+            });
+    });
+}
+
+async function getAllNovelContent(novelList) {
+    let html = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title><Document></Document></title></head><body></body></html>';
+    let dom = cheerio.load(html);
+    let content = '';
+    for (let i = 0, length = novelList.length; i < length; i++) {
+        content += await getQuanbenNovelChapterContent(novelList[i]);
+    }
+    dom('body').append(content);
+    let time = new Date().getTime();
+    let filePath = baseDir + '\\public\\' + time + '.html';
+    fs.closeSync(fs.openSync(filePath, 'w'));
+    fs.writeFileSync(filePath, dom.html());
+    return content;
+}
+
+//获取小说目录列表
+function getQuanbenNovelList(url) {
+    let novelList = [];
+    return new Promise( (resolve, reject) => {
+        superagent.get(url)
+            .proxy(proxy)
+            .end((err, res) => {
+                if (err) {
+                    reject(err);
+                }
+                let $ = cheerio.load(res.text);
+                let allList = $('.list3 li');
+                for (let i = 0, length = allList.length; i < length; i++) {
+                    let item = allList[i];
+                    let href = $(item).find('a').attr('href');
+                    novelList.push('http://quanben.io' + href);
+                }
+                resolve(novelList);
+            });
+    });
+}
+
+//获取当前章节内容
+function getQuanbenNovelChapterContent(url) {
+    console.log(url)
+    return new Promise( (resolve, reject) => {
+        superagent.get(url)
+            .proxy(proxy)
+            .end((err, res) => {
+                if (err) {
+                    reject(err);
+                }
+                if (!res) {
+                    resolve('');
+                    return;
+                }
+                let $ = cheerio.load(res.text);
+                let title = $('.headline');
+                let content = cheerio.load($('.articlebody').html());
+                content('script').remove();
+                content('ins').remove();
+                resolve(title.html() + content.html());
+            });
+    });
+}
+
 module.exports = {
     spideSite,
-    getNovelPageList
+    getNovelPageList,
+    get520Novel,
+    getQuanbenNovel
 };
 
-makeRssXmlFile();
+// makeRssXmlFile();

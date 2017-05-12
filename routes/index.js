@@ -33,8 +33,20 @@ router.get('/lewen8novel/:id', (req, res, next) => {
         })
 });
 
+router.get('/520novel/:id', (req, res, next) => {
+    let url = 'http://m.520xs.la/'+ req.params.id;
+    spide.get520Novel(url)
+});
+
 router.get('/rss.xml', function (req, res, next) {
     spide.getRss();
 });
+
+router.get('/quanbenio/:id', (req, res, next) => {
+    let url = 'http://quanben.io/n/'+ req.params.id +'/list.html';
+    spide.getQuanbenNovel(url, res);
+    res.set('Content-Type', 'text/html');
+    res.send('小说下载中，下载完毕后将在新页面打开。');
+})
 
 module.exports = router;
