@@ -1,2 +1,2 @@
 # my-little-spider
-my little spider
+个人使用的爬虫工具，主要用来抓取网站上的小说，目前支持不多的网站。
