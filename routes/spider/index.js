@@ -15,6 +15,7 @@ let pageInfo = {};
 let pages = [];
 let articles = [];
 let ep = new EventProxy();
+let getContentByPhantom = require('./quanbenPhantom')
 
 require('superagent-proxy')(superagent);
 
@@ -206,7 +207,7 @@ function  getNovel(url, contentArray, index, callback, count) {
  * @param cArray
  * @returns {string}
  */
-function makeHtmlContent(cArray) {
+function makeHtmlContent(cArray, novelName, index) {
     cArray = _.sortBy(cArray, 'index');
     let content = '';
     for ( let i = 0; i < cArray.length; i++) {
@@ -215,8 +216,12 @@ function makeHtmlContent(cArray) {
     let html = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title><Document></Document></title></head><body></body></html>';
     let dom = cheerio.load(html);
     dom('body').append(content);
-    let time = new Date().getTime();
-    let filePath = baseDir + '\\public\\' + time + '.html';
+    let name = new Date().getTime();
+    if (novelName && index) {
+        name = novelName + '' + index;
+    }
+
+    let filePath = baseDir + '\\public\\' + name + '.html';
     fs.closeSync(fs.openSync(filePath, 'w'));
     fs.writeFileSync(filePath, dom.html());
     setTimeout(() => {
@@ -464,14 +469,19 @@ function getQuanbenNovelList(url) {
                 if (err) {
                     reject(err);
                 }
+                assert(res != null);
                 let $ = cheerio.load(res.text);
                 let allList = $('.list3 li');
+                let novelName = $('h1').html();
                 for (let i = 0, length = allList.length; i < length; i++) {
                     let item = allList[i];
                     let href = $(item).find('a').attr('href');
                     novelList.push('http://quanben.io' + href);
                 }
-                resolve(novelList);
+                resolve({
+                    novelList,
+                    novelName
+                });
             });
     });
 }
@@ -500,11 +510,61 @@ function getQuanbenNovelChapterContent(url) {
     });
 }
 
+/*=========================使用phantomjs抓取全本网 start===============================*/
+
+async function getNovelByPhantom(url) {
+    let data = await getQuanbenNovelList(url);
+    let novelList = data.novelList;
+    let novelName = data.novelName;
+    let regex_num_set = /&#(\w+);/g;
+    let size = 100;
+    novelName = novelName.replace(regex_num_set, function(_, $1) {
+        var a = parseInt('0' + $1);
+        return String.fromCharCode(a);
+    });
+    let i = 0, j = 0;
+    let _end = i + size;
+    while (i != novelList.length) {
+        j++;
+        if (_end <= novelList.length) {
+            let tempArray = novelList.slice(i, _end);
+            await getQuanbenByPhantom(tempArray, novelName, j);
+        }
+        if (_end == novelList.length) break;
+        _end = (_end +  size >= novelList.length ) ? novelList.length : _end +  size;
+        i += size;
+    }
+
+}
+
+function getQuanbenByPhantom(novelList, novelName, fileIndex) {
+    return new Promise((res, rej) => {
+        let contentArray = [];
+        let index = 0;
+        let atime = new Date().getTime();
+        let startTime = atime;
+        async.mapLimit(novelList, 5, (item, callback) => {
+            let btime = new Date().getTime();
+            // console.log(btime - atime + '   ' + item);
+            atime = btime;
+            getContentByPhantom(item, contentArray, index++, callback, novelList.length, 0);
+        }, (err, results) => {
+            let insertTime = new Date().getTime();
+            console.log('抓取这小说一共用了 '+ (insertTime - startTime) + ' 毫秒');
+            let content = makeHtmlContent(contentArray, novelName, fileIndex);
+            res('');
+        });
+    });
+}
+
+/*=========================使用phantomjs抓取全本网 end===============================*/
+
 module.exports = {
     spideSite,
     getNovelPageList,
     get520Novel,
-    getQuanbenNovel
+    getQuanbenNovel,
+    getNovelByPhantom
 };
 
 // makeRssXmlFile();

@@ -49,4 +49,12 @@ router.get('/quanbenio/:id', (req, res, next) => {
     res.send('小说下载中，下载完毕后将在新页面打开。');
 })
 
+router.get('/quanbenphantom/:id', (req, res, next) => {
+    let url = 'http://quanben.io/n/'+ req.params.id +'/list.html';
+    let content = spide.getNovelByPhantom(url);
+    // spide.getQuanbenNovel(url, res);
+    res.set('Content-Type', 'text/html');
+    res.send('小说下载中，下载完毕后将在新页面打开。');
+})
+
 module.exports = router;
