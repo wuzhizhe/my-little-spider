@@ -11,6 +11,7 @@ const superagent = require('superagent'),
     // proxy = 'http://10.18.8.21:8081',
     _ = require('underscore'),
     DOMParser = require('xmldom').DOMParser;
+let socket = require('../socket/novel');
 let pageInfo = {};
 let pages = [];
 let articles = [];
@@ -33,7 +34,7 @@ function getPageInfo(url) {
     superagent.get(url)
         .end((err, res) => {
             assert.equal(err, null);
-            let $ = cheerio.load(res.text);
+            let $ = cheerio.load(res.text, {decodeEntities: false});
             let pageDom = $('.pagination').find('a').last().attr('href');
             pageInfo.pageCount = parseInt(pageDom.split('page=')[1]) - 1;
             makePageArray();
@@ -89,7 +90,7 @@ function  getArticle(url, callback) {
             }
 
             try {
-                let $ = cheerio.load(res.text);
+                let $ = cheerio.load(res.text, {decodeEntities: false});
                 let list = $('#topic_list .topic_title');
                 for (let i = 0; i < list.length; i++) {
                     let _item = $(list[i]);
@@ -182,12 +183,12 @@ function  getNovel(url, contentArray, index, callback, count) {
                 return;
             }
             try {
-                let $ = cheerio.load(res.text);
+                let $ = cheerio.load(res.text, {decodeEntities: false});
                 let title = $("#top").find("span").text();
                 let dom = cheerio.load('<div></div><h2 class="title"></h2><div class="content"></div></div>')
                 dom('h2.title').text(title);
                 let content = $('#chaptercontent').html();
-                content = cheerio.load(content);
+                content = cheerio.load(content, {decodeEntities: false});
                 content('p').remove();
                 dom('div.content').append(content.html());
                 contentArray.push({
@@ -214,7 +215,7 @@ function makeHtmlContent(cArray, novelName, index) {
         content += cArray[i].content;
     }
     let html = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title><Document></Document></title></head><body></body></html>';
-    let dom = cheerio.load(html);
+    let dom = cheerio.load(html, {decodeEntities: false});
     dom('body').append(content);
     let name = new Date().getTime();
     if (novelName && index) {
@@ -224,8 +225,9 @@ function makeHtmlContent(cArray, novelName, index) {
     let filePath = baseDir + '\\public\\' + name + '.html';
     fs.closeSync(fs.openSync(filePath, 'w'));
     fs.writeFileSync(filePath, dom.html());
+    socket.emitPartMessage(filePath);
     setTimeout(() => {
-        opn(filePath);
+        // opn(filePath);
     }, 3000)
     return content;
 }
@@ -264,7 +266,7 @@ function getNovelPageList(url) {
             .proxy(proxy)
             .end((err, res) => {
                 assert.equal(err, null);
-                let $ = cheerio.load(res.text);
+                let $ = cheerio.load(res.text, {decodeEntities: false});
                 let chapterlist = $('.chapterlist');
                 let novelArray = makeNovelPageArray($, chapterlist);
                 getNoveText(novelArray, resolve, reject);
@@ -289,7 +291,7 @@ function get520NovelUrls(url) {
             .proxy(proxy)
             .end((err, res) => {
                 assert.equal(err, null);
-                let $ = cheerio.load(res.text);
+                let $ = cheerio.load(res.text, {decodeEntities: false});
                 let prefix = 'http://m.520xs.la';
                 let urlArray = [];
                 let chapterlist = $('.pageselectlist')[0];
@@ -311,7 +313,7 @@ function get520NovelCollect(url) {
             .proxy(proxy)
             .end((err, res) => {
                 assert.equal(err, null);
-                let $ = cheerio.load(res.text);
+                let $ = cheerio.load(res.text, {decodeEntities: false});
                 let chapterList = [];
                 let novelList = $('#chapterlist')[0].children;
                 for (let i = 0; i < novelList.length; i++) {
@@ -332,7 +334,7 @@ function getNovelContent(url) {
                 if (err) {
                     resolve('');
                 }
-                let $ = cheerio.load(res.text);
+                let $ = cheerio.load(res.text, {decodeEntities: false});
                 let content = $('#readercontainer').html();
                 content = content.replace('<div style="display:none;">', '');
                 content = content.replace('</div>', '');
@@ -369,7 +371,7 @@ function* get520Novels(url) {
         content += pageContent;
     }
     let html = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title><Document></Document></title></head><body></body></html>';
-    let dom = cheerio.load(html);
+    let dom = cheerio.load(html, {decodeEntities: false});
     dom('body').append(content);
     let time = new Date().getTime();
     let filePath = baseDir + '\\public\\' + time + '.html';
@@ -424,9 +426,9 @@ function getChapterContent(url, contentArray, index, callback) {
                         resolve('');
                         return;
                     }
-                    let $ = cheerio.load(res.text);
+                    let $ = cheerio.load(res.text, {decodeEntities: false});
                     let title = $('.headline');
-                    let content = cheerio.load($('.articlebody').html());
+                    let content = cheerio.load($('.articlebody').html(), {decodeEntities: false});
                     content('script').remove();
                     content('ins').remove();
                     contentArray.push({
@@ -446,7 +448,7 @@ function getChapterContent(url, contentArray, index, callback) {
 
 async function getAllNovelContent(novelList) {
     let html = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title><Document></Document></title></head><body></body></html>';
-    let dom = cheerio.load(html);
+    let dom = cheerio.load(html, {decodeEntities: false});
     let content = '';
     for (let i = 0, length = novelList.length; i < length; i++) {
         content += await getQuanbenNovelChapterContent(novelList[i]);
@@ -470,7 +472,7 @@ function getQuanbenNovelList(url) {
                     reject(err);
                 }
                 assert(res != null);
-                let $ = cheerio.load(res.text);
+                let $ = cheerio.load(res.text, {decodeEntities: false});
                 let allList = $('.list3 li');
                 let novelName = $('h1').html();
                 for (let i = 0, length = allList.length; i < length; i++) {
@@ -500,9 +502,9 @@ function getQuanbenNovelChapterContent(url) {
                     resolve('');
                     return;
                 }
-                let $ = cheerio.load(res.text);
+                let $ = cheerio.load(res.text, {decodeEntities: false});
                 let title = $('.headline');
-                let content = cheerio.load($('.articlebody').html());
+                let content = cheerio.load($('.articlebody').html(), {decodeEntities: false});
                 content('script').remove();
                 content('ins').remove();
                 resolve(title.html() + content.html());
@@ -518,22 +520,25 @@ async function getNovelByPhantom(url) {
     let novelName = data.novelName;
     let regex_num_set = /&#(\w+);/g;
     let size = 100;
-    novelName = novelName.replace(regex_num_set, function(_, $1) {
-        var a = parseInt('0' + $1);
-        return String.fromCharCode(a);
-    });
+    // novelName = novelName.replace(regex_num_set, function(_, $1) {
+    //     var a = parseInt('0' + $1);
+    //     return String.fromCharCode(a);
+    // });
+    socket.emitMessage('小说名：' + novelName + ' ,全篇一共 ' + novelList.length + ' 章');
     let i = 0, j = 0;
     let _end = i + size;
     while (i != novelList.length) {
         j++;
         if (_end <= novelList.length) {
             let tempArray = novelList.slice(i, _end);
+            socket.emitMessage('正在下载小说 ' + i + '-' + _end + ' 章');
             await getQuanbenByPhantom(tempArray, novelName, j);
         }
         if (_end == novelList.length) break;
         _end = (_end +  size >= novelList.length ) ? novelList.length : _end +  size;
         i += size;
     }
+    socket.emitEndMessage();
 
 }
 

@@ -1,0 +1,13 @@
+doctype html
+html
+  head
+    title= '小说下载'
+    block css
+    link(rel='stylesheet', href='/stylesheets/novel.css')
+  body
+    p.downloading 正在下载
+      dot ...
+
+  script(src='https://code.jquery.com/jquery-3.2.1.min.js')
+  script(src='/socket.io/socket.io.js')
+  script(src='/scripts/novel/novel.js')

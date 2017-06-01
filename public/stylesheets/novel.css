@@ -1,0 +1,22 @@
+@supports (display:none) {
+      dot {
+        display: inline-block; 
+        width: 3ch;
+        text-indent: -1ch;
+        vertical-align: bottom; 
+        overflow: hidden;
+        animation: dot 3s infinite step-start both;
+        font-family: Consolas, Monaco, monospace;
+    }
+}
+
+@keyframes dot {
+    33% { text-indent: 0; }
+    66% { text-indent: -2ch; }
+}
+
+.downloading {
+    color: red;
+    font-size: 26px;
+    font-weight: bold;
+}

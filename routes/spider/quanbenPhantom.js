@@ -24,7 +24,7 @@ async function getContent(url, array, index, cb, length, repeat) {
         await sleep(2000);
 
         const content = await page.property('content');
-        let $ = cheerio.load(content);
+        let $ = cheerio.load(content, {decodeEntities: false});
         let title = $('.headline').html();
         let novel = $('#content').html();
         console.log(url + ' title is : ' + title);
@@ -45,6 +45,7 @@ async function getContent(url, array, index, cb, length, repeat) {
         });
         await instance.exit();
         cb();
+
     } catch (err) {
         getContent(url, array, index, cb, length, repeat + 1);
         return;
